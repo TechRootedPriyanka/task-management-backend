@@ -4,13 +4,17 @@ const bodyParser = require("body-parser");
 const swaggerJSDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 
+const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
 const app = express();
 const PORT = 3000;
 
+app.use(cors());
 app.use(bodyParser.json());
 
 // MongoDB connection
-
 mongoose.connect("mongodb://localhost:27017/TaskManagementDB", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -46,9 +50,7 @@ const taskSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model("User", userSchema);
-
 const Room = mongoose.model("Room", roomSchema);
-
 const Task = mongoose.model("Task", taskSchema);
 
 // Define Swagger definition
@@ -78,6 +80,42 @@ const swaggerSpec = swaggerJSDoc(options);
 // Serve Swagger UI
 app.use("/api-docs", swaggerUi.serve);
 app.get("/api-docs", swaggerUi.setup(swaggerSpec));
+
+// // Login route
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    console.log(email);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log(password + "password");
+    console.log(user.password + "userpassword");
+    console.log(isPasswordValid);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: user._id }, 'your_secret_key', { expiresIn: '1h' });
+    console.log(token);
+    res.json({ token });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+// Login route
+
+
+
 
 // CRUD routes for user
 
@@ -113,6 +151,46 @@ app.post("/users", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+
+// /**
+//  * @swagger
+//  * /users:
+//  *   post:
+//  *     summary: Create a new user
+//  *     tags:
+//  *       - Users
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             $ref: '#/definitions/User'
+//  *     responses:
+//  *       201:
+//  *         description: User created successfully
+//  *         schema:
+//  *           $ref: '#/definitions/User'
+//  *       500:
+//  *         description: Internal Server Error
+//  */
+// app.post("/users", async (req, res) => {
+//   try {
+//     const { email, password, role } = req.body;
+
+//     // Hash the password
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // Create a new user with hashed password
+//     const newUser = new User({ email, password: hashedPassword, role });
+//     await newUser.save();
+
+//     res.status(201).json(newUser);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Internal Server Error" });
+//   }
+// });
 
 /**
  * @swagger
