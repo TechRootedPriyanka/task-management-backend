@@ -1,18 +1,29 @@
+// import { jwtDecode } from "jwt-decode";
+const cors = require("cors");
 const express = require("express");
+const session = require("express-session");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const swaggerJSDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
-
-const cors = require('cors');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+// const jwtDecode = require('jwt-decode');
 
 const app = express();
 const PORT = 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
+// Use express-session middleware
+app.use(
+  session({
+    secret: "your_secret_key", // Replace with a secure secret key
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false }, // Set secure to true if using HTTPS
+  })
+);
 
 // MongoDB connection
 mongoose.connect("mongodb://localhost:27017/TaskManagementDB", {
@@ -86,25 +97,21 @@ app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ email });
-    console.log(email);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log(password + "password");
-    console.log(user.password + "userpassword");
-    console.log(isPasswordValid);
-
+  
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Invalid password" });
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, 'your_secret_key', { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id }, "your_secret_key", {
+      expiresIn: "1h",
+    });
     console.log(token);
     res.json({ token });
   } catch (error) {
@@ -112,9 +119,42 @@ app.post("/login", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-// Login route
+
+app.post("/logout", (req, res) => {
+  try {
+    // Clear session data
+    req.session.destroy();
+
+    // Return a success message
+    res.json({ message: "Logout successful" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 
+// Example backend /user/profile endpoint
+app.get("/users/profile", async (req, res) => {
+  try {
+    // Extract token from the authorization header
+    const token = req.headers['authorization'];
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+    
+    // Decode the token
+    const {userId} = jwt.decode(token);
+    
+    const user = await User.findById(userId);
+    res.status(200).json(user);
+    // Now you can use the decoded token to get user details or perform other actions
+
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 
 // CRUD routes for user
@@ -143,54 +183,20 @@ app.post("/login", async (req, res) => {
 app.post("/users", async (req, res) => {
   try {
     const { email, password, role } = req.body;
-    const newUser = new User({ email, password, role });
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create a new user with hashed password
+    const newUser = new User({ email, password: hashedPassword, role });
     await newUser.save();
+
     res.status(201).json(newUser);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-
-// /**
-//  * @swagger
-//  * /users:
-//  *   post:
-//  *     summary: Create a new user
-//  *     tags:
-//  *       - Users
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             $ref: '#/definitions/User'
-//  *     responses:
-//  *       201:
-//  *         description: User created successfully
-//  *         schema:
-//  *           $ref: '#/definitions/User'
-//  *       500:
-//  *         description: Internal Server Error
-//  */
-// app.post("/users", async (req, res) => {
-//   try {
-//     const { email, password, role } = req.body;
-
-//     // Hash the password
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     // Create a new user with hashed password
-//     const newUser = new User({ email, password: hashedPassword, role });
-//     await newUser.save();
-
-//     res.status(201).json(newUser);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// });
 
 /**
  * @swagger
