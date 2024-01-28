@@ -388,6 +388,46 @@ app.get("/rooms", async (req, res) => {
 /**
  * @swagger
  * /rooms/{roomId}:
+ *   get:
+ *     summary: Get a room by ID
+ *     tags:
+ *       - Rooms
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the room to retrieve
+ *     responses:
+ *       200:
+ *         description: The room with the specified ID
+ *         schema:
+ *           $ref: '#/definitions/Room'
+ *       404:
+ *         description: Room not found
+ *       500:
+ *         description: Internal Server Error
+ */
+app.get("/rooms/:roomId", async (req, res) => {
+  try {
+    const roomId = req.params.roomId;
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    res.status(200).json(room);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/**
+ * @swagger
+ * /rooms/{roomId}:
  *   put:
  *     summary: Update a room
  *     tags:
@@ -549,6 +589,50 @@ app.get("/tasks", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+/**
+ * @swagger
+ * /tasks/{roomId}:
+ *   get:
+ *     summary: Get tasks by room ID
+ *     tags:
+ *       - Tasks
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the room to retrieve tasks from
+ *     responses:
+ *       200:
+ *         description: List of tasks in the specified room
+ *         schema:
+ *           type: array
+ *           items:
+ *             $ref: '#/definitions/Task'
+ *       404:
+ *         description: Room not found
+ *       500:
+ *         description: Internal Server Error
+ */
+app.get("/tasks/:roomId", async (req, res) => {
+  try {
+    const roomId = req.params.roomId;
+    // Fetch tasks by room ID from the database
+    const tasks = await Task.find({ roomId });
+
+    if (!tasks) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    res.status(200).json(tasks);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 /**
  * @swagger
